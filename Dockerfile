@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 go build
 
 FROM alpine
 
-COPY --from=build /app/node-os-label-controller /usr/local/bin
+COPY --from=build /app/node-label-controller /usr/local/bin
 
 #USER root:root
 

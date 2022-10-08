@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	coreinformers "k8s.io/client-go/informers/core/v1"
@@ -148,7 +152,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Get the Node resource with this namespace/name
-	_, err = c.nodeLister.Get(name)
+	node, err := c.nodeLister.Get(name)
 	if err != nil {
 		// The node resource may no longer exist, in which case we stop
 		// processing.
@@ -158,5 +162,31 @@ func (c *Controller) syncHandler(key string) error {
 		}
 		return err
 	}
+	if !validateNodeOS(node.Status.NodeInfo.OperatingSystem) {
+		klog.Info("Node is not of OS that is specified in the command line argument")
+		return nil
+	}
+	err = c.updateNodeLabel(node, node.Status.NodeInfo.OperatingSystem)
+	if err != nil {
+		klog.Errorf("\nError updating the node %s", err.Error())
+		return err
+	}
 	return nil
+}
+
+func validateNodeOS(nodeos string) bool {
+	osName := os.Args[1]
+	klog.Infof("the required OS for node is: %s", osName)
+	return osName == nodeos
+}
+
+// UPdate the node label
+func (c *Controller) updateNodeLabel(node *v1.Node, nodeos string) error {
+	// Use DeepCopy() to make a deep copy of original object and modify this copy
+	// Or create a copy manually for better performance
+	nodeCopy := node.DeepCopy()
+	nodeCopy.Labels["k8c.io/uses-"+nodeos] = "true"
+
+	_, err := c.clientset.CoreV1().Nodes().Update(context.Background(), nodeCopy, metav1.UpdateOptions{})
+	return err
 }

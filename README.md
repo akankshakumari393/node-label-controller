@@ -48,4 +48,8 @@ kubectl create clusterrolebinding cluster-role-binding --clusterrole=cluster-rol
 ```
 
 ### Create node label os controller as deployment
+```
 kubectl create -f k8s-resources/deployment.yaml -n controller
+```
+
+This would update the Node resource and add label `k8c.io/uses-linux=true` in above example if the OS matches the arg provided in the deployment, in our case `linux`
